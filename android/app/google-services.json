@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "839067287740",
+    "project_id": "pocketfine-finance-tracker",
+    "storage_bucket": "pocketfine-finance-tracker.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:839067287740:android:4105990ebfae7a6b3c50b9",
+        "android_client_info": {
+          "package_name": "com.example.pocketfine_finance_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD76AsPACjrWyRsL391N75qujrXRKSiiTM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
