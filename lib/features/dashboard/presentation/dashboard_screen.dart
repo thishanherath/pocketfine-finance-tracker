@@ -1,411 +1,295 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:pocketfine_finance_tracker/features/auth/data/auth_service.dart';
+import 'package:pocketfine_finance_tracker/features/auth/presentation/login_screen.dart';
+import 'package:pocketfine_finance_tracker/features/transactions/data/transaction_service.dart';
 import 'package:pocketfine_finance_tracker/features/transactions/presentation/add_transaction_screen.dart';
 
-
 class DashboardScreen extends StatelessWidget {
+  DashboardScreen({super.key});
 
-  const DashboardScreen({super.key});
-
+  final TransactionService transactionService = TransactionService();
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       appBar: AppBar(
-
-        title: const Text(
-          "PockeFine",
-        ),
+        title: const Text("PockeFine"),
 
         actions: [
 
           IconButton(
+            icon: const Icon(Icons.logout),
 
-            icon:
-            const Icon(Icons.logout),
+            onPressed: () async {
 
-            onPressed: () {},
+              await AuthService().logout();
 
-          )
+              if (context.mounted) {
+
+                Navigator.pushAndRemoveUntil(
+                  context,
+
+                  MaterialPageRoute(
+                    builder: (_) => const LoginScreen(),
+                  ),
+
+                  (route) => false,
+                );
+
+              }
+
+            },
+          ),
 
         ],
-
       ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: transactionService.getTransactions(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text("Something went wrong"),
+            );
+          }
 
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
 
-      body: SingleChildScrollView(
+          final docs = snapshot.data!.docs;
 
-        padding:
-        const EdgeInsets.all(20),
+          double totalIncome = 0;
+          double totalExpense = 0;
 
+          for (var doc in docs) {
+            final data = doc.data();
 
-        child: Column(
+            final amount =
+                (data["amount"] as num).toDouble();
 
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+            if (data["type"] == "income") {
+              totalIncome += amount;
+            } else {
+              totalExpense += amount;
+            }
+          }
 
+          final balance =
+              totalIncome - totalExpense;
 
-          children: [
-
-
-            const Text(
-
-              "Good Morning 👋",
-
-              style:
-              TextStyle(
-
-                fontSize:26,
-
-                fontWeight:
-                FontWeight.bold,
-
-              ),
-
-            ),
-
-
-            const SizedBox(height:20),
-
-
-
-            _balanceCard(),
-
-
-
-            const SizedBox(height:20),
-
-
-
-            Row(
-
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
 
-                Expanded(
-
-                  child:
-                  _moneyCard(
-
-                    title:"Income",
-
-                    amount:"+ Rs 200,000",
-
-                    icon:
-                    Icons.arrow_downward,
-
+                const Text(
+                  "Good Morning 👋",
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
                   ),
-
                 ),
 
+                const SizedBox(height: 20),
 
-                const SizedBox(width:15),
+                _balanceCard(balance),
 
+                const SizedBox(height: 20),
 
-                Expanded(
+                Row(
+                  children: [
+                    Expanded(
+                      child: _moneyCard(
+                        title: "Income",
+                        amount:
+                            "Rs ${totalIncome.toStringAsFixed(2)}",
+                        icon: Icons.arrow_downward,
+                        color: Colors.green,
+                      ),
+                    ),
 
-                  child:
-                  _moneyCard(
+                    const SizedBox(width: 15),
 
-                    title:"Expense",
-
-                    amount:"- Rs 50,000",
-
-                    icon:
-                    Icons.arrow_upward,
-
-                  ),
-
+                    Expanded(
+                      child: _moneyCard(
+                        title: "Expense",
+                        amount:
+                            "Rs ${totalExpense.toStringAsFixed(2)}",
+                        icon: Icons.arrow_upward,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
                 ),
 
+                const SizedBox(height: 30),
+
+                const Text(
+                  "Recent Transactions",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+
+                if (docs.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text(
+                        "No transactions yet",
+                      ),
+                    ),
+                  ),
+
+                ...docs.map((doc) {
+                  final data = doc.data();
+
+                  final bool isIncome =
+                      data["type"] == "income";
+
+                  return Card(
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        child: Icon(
+                          isIncome
+                              ? Icons.arrow_downward
+                              : Icons.arrow_upward,
+                        ),
+                      ),
+
+                      title: Text(
+                        data["title"],
+                      ),
+
+                      subtitle: Text(
+                        data["category"],
+                      ),
+
+                      trailing: Row(
+                        mainAxisSize:
+                            MainAxisSize.min,
+                        children: [
+                          Text(
+                            "${isIncome ? "+" : "-"} Rs ${data["amount"]}",
+                            style: TextStyle(
+                              color: isIncome
+                                  ? Colors.green
+                                  : Colors.red,
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+
+                          IconButton(
+                            onPressed: () async {
+                              await transactionService
+                                  .deleteTransaction(
+                                      doc.id);
+                            },
+                            icon: const Icon(
+                              Icons.delete,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
               ],
-
             ),
-
-
-
-            const SizedBox(height:30),
-
-
-
-            const Text(
-
-              "Recent Transactions",
-
-              style:
-              TextStyle(
-
-                fontSize:22,
-
-                fontWeight:
-                FontWeight.bold,
-
-              ),
-
-            ),
-
-
-            const SizedBox(height:15),
-
-
-
-            _transactionTile(
-                "Salary",
-                "+ Rs 150,000",
-                Icons.work),
-
-
-            _transactionTile(
-                "Food",
-                "- Rs 2,500",
-                Icons.restaurant),
-
-
-            _transactionTile(
-                "Transport",
-                "- Rs 1,000",
-                Icons.directions_car),
-
-
-          ],
-
-        ),
-
+          );
+        },
       ),
 
-
-
-      floatingActionButton:
-
-      FloatingActionButton(
-
+      floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) =>
-                const AddTransactionScreen(),
-      ),
-    );
+                  const AddTransactionScreen(),
+            ),
+          );
         },
-
-        child:
-        const Icon(Icons.add),
-
+        child: const Icon(Icons.add),
       ),
-
     );
-
   }
 
-
-
-
-
-  Widget _balanceCard(){
-
+  Widget _balanceCard(double balance) {
     return Container(
-
-      width:
-      double.infinity,
-
-
-      padding:
-      const EdgeInsets.all(25),
-
-
-      decoration:
-      BoxDecoration(
-
-        color:
-        Colors.green,
-
-
-        borderRadius:
-        BorderRadius.circular(20),
-
+      width: double.infinity,
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.green,
+        borderRadius: BorderRadius.circular(20),
       ),
-
-
-      child:
-      const Column(
-
+      child: Column(
         crossAxisAlignment:
-        CrossAxisAlignment.start,
-
-
+            CrossAxisAlignment.start,
         children: [
-
-          Text(
-
+          const Text(
             "Current Balance",
-
-            style:
-            TextStyle(
-
-              color:
-              Colors.white,
-
+            style: TextStyle(
+              color: Colors.white,
             ),
-
           ),
 
-
-          SizedBox(height:10),
-
+          const SizedBox(height: 10),
 
           Text(
-
-            "Rs 150,000",
-
-            style:
-            TextStyle(
-
-              color:
-              Colors.white,
-
-              fontSize:32,
-
-              fontWeight:
-              FontWeight.bold,
-
+            "Rs ${balance.toStringAsFixed(2)}",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
             ),
-
           ),
-
         ],
-
       ),
-
     );
-
   }
-
-
-
 
   Widget _moneyCard({
-
     required String title,
-
     required String amount,
-
     required IconData icon,
-
-  }){
-
-
+    required Color color,
+  }) {
     return Container(
-
-      padding:
-      const EdgeInsets.all(18),
-
-
-      decoration:
-      BoxDecoration(
-
-        color:
-        Colors.white,
-
-
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius:
-        BorderRadius.circular(15),
-
+            BorderRadius.circular(15),
       ),
-
-
-      child:
-      Column(
-
+      child: Column(
         children: [
+          Icon(icon, color: color),
 
-
-          Icon(icon),
-
-
-          const SizedBox(height:10),
-
+          const SizedBox(height: 10),
 
           Text(title),
 
-
-          const SizedBox(height:5),
-
+          const SizedBox(height: 5),
 
           Text(
-
             amount,
-
-            style:
-            const TextStyle(
-
-              fontWeight:
-              FontWeight.bold,
-
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
             ),
-
-          )
-
-        ],
-
-      ),
-
-    );
-
-  }
-
-
-
-
-  Widget _transactionTile(
-
-      String title,
-
-      String amount,
-
-      IconData icon
-
-      ){
-
-
-    return Card(
-
-      child:
-      ListTile(
-
-        leading:
-        CircleAvatar(
-
-          child:
-          Icon(icon),
-
-        ),
-
-
-        title:
-        Text(title),
-
-
-        trailing:
-        Text(
-
-          amount,
-
-          style:
-          const TextStyle(
-
-            fontWeight:
-            FontWeight.bold,
-
           ),
-
-        ),
-
+        ],
       ),
-
     );
-
   }
-
-
 }
