@@ -1,294 +1,200 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:pocketfine_finance_tracker/features/auth/data/auth_service.dart';
-import 'package:pocketfine_finance_tracker/features/auth/presentation/login_screen.dart';
-import 'package:pocketfine_finance_tracker/features/transactions/data/transaction_service.dart';
-import 'package:pocketfine_finance_tracker/features/transactions/presentation/add_transaction_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pocketfine_finance_tracker/features/auth/data/auth_repository.dart';
+import 'package:go_router/go_router.dart';
+import 'package:pocketfine_finance_tracker/features/dashboard/presentation/dashboard_controller.dart';
+import 'package:pocketfine_finance_tracker/features/transactions/data/transaction_repository.dart';
+import 'package:pocketfine_finance_tracker/features/dashboard/widgets/expense_chart.dart';
+import 'package:pocketfine_finance_tracker/features/dashboard/widgets/monthly_chart.dart';
+import 'package:pocketfine_finance_tracker/features/dashboard/widgets/premium_balance_card.dart';
+import 'package:pocketfine_finance_tracker/features/dashboard/widgets/premium_money_card.dart';
 
-class DashboardScreen extends StatelessWidget {
-  DashboardScreen({super.key});
-
-  final TransactionService transactionService = TransactionService();
+class DashboardScreen extends ConsumerWidget {
+  const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("PockeFine"),
-
+        title: const Text("PocketFine"),
         actions: [
-
           IconButton(
-            icon: const Icon(Icons.logout),
-
-            onPressed: () async {
-
-              await AuthService().logout();
-
-              if (context.mounted) {
-
-                Navigator.pushAndRemoveUntil(
-                  context,
-
-                  MaterialPageRoute(
-                    builder: (_) => const LoginScreen(),
-                  ),
-
-                  (route) => false,
-                );
-
-              }
-
+            icon: const Icon(
+              Icons.account_balance_wallet,
+            ),
+            onPressed: () {
+              context.push('/budget');
             },
           ),
-
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await ref.read(authRepositoryProvider).logout();
+              if (context.mounted) {
+                context.go('/');
+              }
+            },
+          ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: transactionService.getTransactions(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(
-              child: Text("Something went wrong"),
-            );
-          }
-
-          if (!snapshot.hasData) {
-            return const Center(
+      body: ref.watch(dashboardControllerProvider).when(
+            loading: () => const Center(
               child: CircularProgressIndicator(),
-            );
-          }
+            ),
+            error: (error, stack) => const Center(
+              child: Text("Something went wrong"),
+            ),
+            data: (state) {
+              final docs = state.transactions;
 
-          final docs = snapshot.data!.docs;
-
-          double totalIncome = 0;
-          double totalExpense = 0;
-
-          for (var doc in docs) {
-            final data = doc.data();
-
-            final amount =
-                (data["amount"] as num).toDouble();
-
-            if (data["type"] == "income") {
-              totalIncome += amount;
-            } else {
-              totalExpense += amount;
-            }
-          }
-
-          final balance =
-              totalIncome - totalExpense;
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-
-                const Text(
-                  "Good Morning 👋",
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                _balanceCard(balance),
-
-                const SizedBox(height: 20),
-
-                Row(
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: _moneyCard(
-                        title: "Income",
-                        amount:
-                            "Rs ${totalIncome.toStringAsFixed(2)}",
-                        icon: Icons.arrow_downward,
-                        color: Colors.green,
+                    const Text(
+                      "Dashboard",
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-
-                    const SizedBox(width: 15),
-
-                    Expanded(
-                      child: _moneyCard(
-                        title: "Expense",
-                        amount:
-                            "Rs ${totalExpense.toStringAsFixed(2)}",
-                        icon: Icons.arrow_upward,
-                        color: Colors.red,
+                    const SizedBox(height: 15),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<DateFilter>(
+                        segments: const [
+                          ButtonSegment(value: DateFilter.thisMonth, label: Text('This Month')),
+                          ButtonSegment(value: DateFilter.lastMonth, label: Text('Last Month')),
+                          ButtonSegment(value: DateFilter.allTime, label: Text('All Time')),
+                        ],
+                        selected: {ref.watch(dateFilterProvider)},
+                        onSelectionChanged: (Set<DateFilter> newSelection) {
+                          ref.read(dateFilterProvider.notifier).state = newSelection.first;
+                        },
                       ),
                     ),
-                  ],
-                ),
-
-                const SizedBox(height: 30),
-
-                const Text(
-                  "Recent Transactions",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 15),
-
-                if (docs.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Text(
-                        "No transactions yet",
+                    const SizedBox(height: 20),
+                    PremiumBalanceCard(balance: state.balance),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PremiumMoneyCard(
+                            title: "Income",
+                            amount: "Rs ${state.totalIncome.toStringAsFixed(2)}",
+                            icon: Icons.arrow_downward,
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: PremiumMoneyCard(
+                            title: "Expense",
+                            amount: "Rs ${state.totalExpense.toStringAsFixed(2)}",
+                            icon: Icons.arrow_upward,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    ExpenseChart(
+                      food: state.food,
+                      transport: state.transport,
+                      shopping: state.shopping,
+                      bills: state.bills,
+                      other: state.other,
+                    ),
+                    const SizedBox(height: 30),
+                    MonthlyChart(
+                      income: state.totalIncome,
+                      expense: state.totalExpense,
+                    ),
+                    const Text(
+                      "Recent Transactions",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-
-                ...docs.map((doc) {
-                  final data = doc.data();
-
-                  final bool isIncome =
-                      data["type"] == "income";
-
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        child: Icon(
-                          isIncome
-                              ? Icons.arrow_downward
-                              : Icons.arrow_upward,
+                    const SizedBox(height: 15),
+                    if (docs.isEmpty)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Text(
+                            "No transactions yet",
+                          ),
                         ),
                       ),
+                    ...docs.map((doc) {
+                      final data = doc.data();
+                      final bool isIncome = data["type"] == "income";
 
-                      title: Text(
-                        data["title"],
-                      ),
-
-                      subtitle: Text(
-                        data["category"],
-                      ),
-
-                      trailing: Row(
-                        mainAxisSize:
-                            MainAxisSize.min,
-                        children: [
-                          Text(
-                            "${isIncome ? "+" : "-"} Rs ${data["amount"]}",
-                            style: TextStyle(
-                              color: isIncome
-                                  ? Colors.green
-                                  : Colors.red,
-                              fontWeight:
-                                  FontWeight.bold,
+                      return Card(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            child: Icon(
+                              isIncome ? Icons.arrow_downward : Icons.arrow_upward,
                             ),
                           ),
-
-                          IconButton(
-                            onPressed: () async {
-                              await transactionService
-                                  .deleteTransaction(
-                                      doc.id);
-                            },
-                            icon: const Icon(
-                              Icons.delete,
-                            ),
+                          title: Text(
+                            data["title"],
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          );
-        },
-      ),
-
+                          subtitle: Text(
+                            data["category"],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "${isIncome ? "+" : "-"} Rs ${data["amount"]}",
+                                style: TextStyle(
+                                  color: isIncome ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  context.push('/edit-transaction', extra: {
+                                    'id': doc.id,
+                                    'title': data["title"],
+                                    'amount': (data["amount"] as num).toDouble(),
+                                    'type': data["type"],
+                                    'category': data["category"],
+                                  });
+                                },
+                                icon: const Icon(
+                                  Icons.edit,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () async {
+                                  await ref
+                                      .read(transactionRepositoryProvider)
+                                      .deleteTransaction(doc.id);
+                                },
+                                icon: const Icon(
+                                  Icons.delete,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              );
+            },
+          ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  const AddTransactionScreen(),
-            ),
-          );
+          context.push('/add-transaction');
         },
         child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Widget _balanceCard(double balance) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: Colors.green,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Current Balance",
-            style: TextStyle(
-              color: Colors.white,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            "Rs ${balance.toStringAsFixed(2)}",
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _moneyCard({
-    required String title,
-    required String amount,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(15),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color),
-
-          const SizedBox(height: 10),
-
-          Text(title),
-
-          const SizedBox(height: 5),
-
-          Text(
-            amount,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:pocketfine_finance_tracker/features/dashboard/presentation/dashboard_screen.dart';
-import '../data/auth_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../data/auth_repository.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() =>
+  ConsumerState<LoginScreen> createState() =>
       _LoginScreenState();
 }
 
-
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   final emailController =
       TextEditingController();
@@ -19,9 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController =
       TextEditingController();
 
-
-  final AuthService authService =
-      AuthService();
 
 
   bool isLoading = false;
@@ -41,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
 
 
-      await authService.loginUser(
+      await ref.read(authRepositoryProvider).loginUser(
 
         email:
         emailController.text.trim(),
@@ -54,16 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if(mounted){
 
-        Navigator.pushReplacement(
-          context,
-
-          MaterialPageRoute(
-
-            builder: (_) => DashboardScreen(),
-
-          ),
-
-        );
+        context.go('/dashboard');
 
       }
 
@@ -121,18 +109,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
 
             const Text(
-
               "Welcome Back",
-
               style: TextStyle(
-
-                fontSize:32,
-
-                fontWeight:
-                FontWeight.bold,
-
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
               ),
-
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Sign in to continue managing your finances",
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
             ),
 
 
@@ -147,14 +136,8 @@ class _LoginScreenState extends State<LoginScreen> {
               emailController,
 
 
-              decoration:
-              const InputDecoration(
-
+              decoration: const InputDecoration(
                 labelText:"Email",
-
-                border:
-                OutlineInputBorder(),
-
               ),
 
             ),
@@ -174,14 +157,8 @@ class _LoginScreenState extends State<LoginScreen> {
               obscureText:true,
 
 
-              decoration:
-              const InputDecoration(
-
+              decoration: const InputDecoration(
                 labelText:"Password",
-
-                border:
-                OutlineInputBorder(),
-
               ),
 
             ),
@@ -227,8 +204,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
               ),
 
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                context.push('/register');
+              },
+              child: const Text(
+                "Don't have an account? Register",
+                style: TextStyle(color: Colors.grey),
+              ),
             )
-
           ],
 
         ),

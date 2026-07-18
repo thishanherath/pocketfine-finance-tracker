@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
-import '../data/auth_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../data/auth_repository.dart';
 
-
-class RegisterScreen extends StatefulWidget {
-
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
-
   @override
-  State<RegisterScreen> createState() =>
+  ConsumerState<RegisterScreen> createState() =>
       _RegisterScreenState();
-
 }
 
-
-
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
 
   final nameController = TextEditingController();
@@ -23,9 +19,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final emailController = TextEditingController();
 
   final passwordController = TextEditingController();
-
-
-  final AuthService authService = AuthService();
 
 
   bool isLoading = false;
@@ -44,8 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
 
-
-      await authService.registerUser(
+      await ref.read(authRepositoryProvider).registerUser(
 
         name: nameController.text.trim(),
 
@@ -57,20 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
 
       if(mounted){
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-
-          const SnackBar(
-
-            content:
-            Text("Account created successfully"),
-
-          ),
-
-        );
-
-
+        context.go('/dashboard');
       }
 
 
@@ -128,18 +107,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
 
             const Text(
-
               "Create Account",
-
               style: TextStyle(
-
                 fontSize: 32,
-
-                fontWeight:
-                FontWeight.bold,
-
+                fontWeight: FontWeight.bold,
               ),
-
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Sign up to start tracking your expenses",
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
             ),
 
 
@@ -152,14 +132,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               controller:nameController,
 
-              decoration:
-              const InputDecoration(
-
+              decoration: const InputDecoration(
                 labelText:"Name",
-
-                border:
-                OutlineInputBorder(),
-
               ),
 
             ),
@@ -175,14 +149,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               emailController,
 
 
-              decoration:
-              const InputDecoration(
-
+              decoration: const InputDecoration(
                 labelText:"Email",
-
-                border:
-                OutlineInputBorder(),
-
               ),
 
             ),
@@ -202,14 +170,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               obscureText:true,
 
 
-              decoration:
-              const InputDecoration(
-
+              decoration: const InputDecoration(
                 labelText:"Password",
-
-                border:
-                OutlineInputBorder(),
-
               ),
 
             ),
@@ -255,9 +217,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               ),
 
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                context.pop();
+              },
+              child: const Text(
+                "Already have an account? Login",
+                style: TextStyle(color: Colors.grey),
+              ),
             )
-
-
           ],
 
         ),
